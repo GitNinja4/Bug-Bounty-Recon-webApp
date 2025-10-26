@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: bug-bounty-recon
+    env: docker
+    region: singapore  # Choose region closest to your users
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false  # Marks as secret
+      - key: TELEGRAM_CHAT_ID
+        sync: false  # Marks as secret
+      - key: FLASK_ENV
+        value: production
+    scaling:
+      minInstances: 1
+      maxInstances: 1

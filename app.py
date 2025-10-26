@@ -1,4 +1,4 @@
-from flask import Flask, render_template
+from flask import Flask, render_template, jsonify
 from flask_socketio import SocketIO, emit
 import subprocess
 import whois
@@ -7,8 +7,18 @@ import platform
 from telegram_bot import send_message
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'secret!'
-socketio = SocketIO(app)
+app.config['SECRET_KEY'] = os.getenv('FLASK_SECRET_KEY', 'dev_key_change_in_production!')
+app.config['ENV'] = os.getenv('FLASK_ENV', 'production')
+app.config['DEBUG'] = False if app.config['ENV'] == 'production' else True
+
+# Configure SocketIO for production
+socketio = SocketIO(
+    app,
+    async_mode='eventlet',  # Use eventlet for better WebSocket performance
+    cors_allowed_origins="*",  # Adjust this in production to your domain
+    ping_timeout=30,
+    ping_interval=25
+)
 
 @app.route('/')
 def index():
@@ -173,5 +183,20 @@ def start_recon(data):
         emit('recon_update', {'data': f'Domains added to {org_name}'})
     send_message(f"🔎 Recon setup complete for {org_name} with domains: {', '.join(domains)}")
 
+# Health check endpoint
+@app.route('/health')
+def health_check():
+    return jsonify({
+        'status': 'healthy',
+        'version': '1.0.0'
+    })
+
 if __name__ == '__main__':
-    socketio.run(app, debug=True, host='0.0.0.0', allow_unsafe_werkzeug=True)
+    port = int(os.getenv('PORT', 5000))
+    socketio.run(
+        app,
+        host='0.0.0.0',
+        port=port,
+        debug=app.config['DEBUG'],
+        allow_unsafe_werkzeug=not app.config['ENV'] == 'production'
+    )
